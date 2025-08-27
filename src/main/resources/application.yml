@@ -1,0 +1,34 @@
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/inicio?useTimezone=true&serverTimezone=UTC
+    username: root
+    password: root
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: false
+  profiles:
+    active: dev,prod
+hubspot:
+  client-id: 80737f7d-c76e-4ee9-85fe-d45b98b80b4c
+  redirect-uri: http://localhost
+  client-secret: babaf647-0872-4880-b9df-75c2e93120c8
+  scope: oauth
+server:
+  port: 8080
+
+organizador:
+  excel-path: "C:/Dev/Projeto Danilo/testes/TDW9FI 2608.xlsx"
+  source-base-path: "C:/Dev/Projeto Danilo/testes/pastasteste"
+  dest-base-path: "C:/Dev/Projeto Danilo/testes/pastatestecopia"
+  sheet-index: 0
+  timezone: "America/Sao_Paulo"
+  columns:
+    numero: "WORDER"
+    tipo: "OTYPE"
+    data: "DUEDATE"     # <- agora pega essa coluna
+  dry-run: true
