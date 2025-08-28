@@ -3,15 +3,21 @@ package br.com.portfoliopelusci.service;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 import br.com.portfoliopelusci.config.OrganizadorProperties;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.*;
 import java.text.Normalizer;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.*;
+import java.util.stream.Stream;
+import java.util.stream.Collectors;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 @Service
 public class OrganizadorService {
@@ -36,6 +42,11 @@ public class OrganizadorService {
             throw new IllegalArgumentException("Pasta de origem inválida: " + sourceBase);
         }
         Files.createDirectories(destBase);
+
+        Set<Path> restantes;
+        try (Stream<Path> stream = Files.list(sourceBase)) {
+            restantes = stream.filter(Files::isDirectory).collect(Collectors.toSet());
+        }
 
         // Timezone (default SP)
         String tz = "America/Sao_Paulo";
@@ -89,7 +100,7 @@ public class OrganizadorService {
                     log("AVISO (linha " + (r+1) + "): Data inválida (Numero=" + numero + "). Usando URGENCIA=SEM_DATA.");
                 }
 
-                String urg = computeUrgencia(hoje, due); // ATRASADA | URGENTE | NORMAL | SEM_DATA
+                String urg = computeUrgencia(hoje, due); // R | Y | B | N
 
                 // Pasta origem (original) pelo número
                 Path src = sourceBase.resolve(numero);
@@ -97,6 +108,7 @@ public class OrganizadorService {
                     log("AVISO (linha " + (r+1) + "): Pasta da ordem não encontrada: " + src);
                     continue;
                 }
+                restantes.remove(src);
 
                 // Pasta de destino por tipo
                 Path tipoDir = destBase.resolve(safeName(tipo));
@@ -115,15 +127,72 @@ public class OrganizadorService {
                 }
             }
         }
+
+        Path semDocDir = sourceBase.resolve(safeName("não tem no documento"));
+        Files.createDirectories(semDocDir);
+        for (Path dir : restantes) {
+            Path destino = uniquePath(semDocDir.resolve(dir.getFileName()));
+            if (dryRun) {
+                log("[DRY-RUN] Mover: " + dir.getFileName() + " -> " + semDocDir.getFileName() + "/" + destino.getFileName());
+            } else {
+                Files.move(dir, destino);
+            }
+            log("SEM PLANILHA: " + dir.getFileName());
+        }
+    }
+
+    public void processarZip(MultipartFile zip) throws IOException {
+        Path sourceRoot = Path.of(props.getSourceBasePath());
+        Files.createDirectories(sourceRoot);
+
+        String filename = zip.getOriginalFilename() != null ? zip.getOriginalFilename() : "upload.zip";
+        String baseName = filename.endsWith(".zip") ? filename.substring(0, filename.length() - 4) : filename;
+        Path unzipDir = uniquePath(sourceRoot.resolve(baseName));
+
+        try (InputStream in = zip.getInputStream()) {
+            unzip(in, unzipDir);
+        }
+
+        log("Arquivo ZIP recebido: " + filename);
+        try (Stream<Path> stream = Files.list(unzipDir)) {
+            stream.filter(Files::isDirectory)
+                  .forEach(p -> log("Ordem encontrada: " + p.getFileName()));
+        }
+
+        String originalSource = props.getSourceBasePath();
+        try {
+            props.setSourceBasePath(unzipDir.toString());
+            processar();
+        } finally {
+            props.setSourceBasePath(originalSource);
+        }
     }
 
     /* ===== Helpers ===== */
 
+    private static void unzip(InputStream in, Path target) throws IOException {
+        try (ZipInputStream zin = new ZipInputStream(in)) {
+            ZipEntry entry;
+            while ((entry = zin.getNextEntry()) != null) {
+                Path newPath = target.resolve(entry.getName()).normalize();
+                if (!newPath.startsWith(target)) {
+                    throw new IOException("Entrada inválida: " + entry.getName());
+                }
+                if (entry.isDirectory()) {
+                    Files.createDirectories(newPath);
+                } else {
+                    Files.createDirectories(newPath.getParent());
+                    Files.copy(zin, newPath, StandardCopyOption.REPLACE_EXISTING);
+                }
+            }
+        }
+    }
+
     private static String computeUrgencia(LocalDate hoje, LocalDate data) {
-        if (data == null) return "SEM_DATA";
-        if (data.isBefore(hoje)) return "ATRASADA";
-        if (data.isEqual(hoje))  return "URGENTE";
-        return "NORMAL";
+        if (data == null) return "N";
+        if (data.isBefore(hoje)) return "R";
+        if (data.isEqual(hoje))  return "Y";
+        return "B";
     }
 
     // Lê datas do Excel suportando célula de data nativa e texto (MM/dd/yyyy, ISO)
