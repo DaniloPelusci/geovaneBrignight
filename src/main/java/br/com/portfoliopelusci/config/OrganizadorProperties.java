@@ -13,6 +13,9 @@ public class OrganizadorProperties {
     private String excelPath;
 
     @NotBlank
+    private String zipPath;
+
+    @NotBlank
     private String sourceBasePath;
 
     @NotBlank
@@ -64,6 +67,13 @@ public class OrganizadorProperties {
     }
     public void setExcelPath(String excelPath) {
         this.excelPath = excelPath;
+    }
+
+    public String getZipPath() {
+        return zipPath;
+    }
+    public void setZipPath(String zipPath) {
+        this.zipPath = zipPath;
     }
 
     public String getSourceBasePath() {
