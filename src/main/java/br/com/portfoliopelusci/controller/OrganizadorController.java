@@ -44,6 +44,18 @@ public class OrganizadorController {
         }
     }
 
+    /** Cria pastas vazias para cada ordem presente na planilha */
+    @PostMapping("/folders")
+    public String criarPastas() {
+        try {
+            service.criarPastas();
+            return "Pastas processadas (dryRun=" + props.isDryRun() + ").";
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "Erro: " + e.getMessage();
+        }
+    }
+
     /** Recebe um ZIP contendo as ordens e processa localmente */
     @PostMapping("/upload")
     public String organizarZip(@RequestParam("file") MultipartFile zip) {
