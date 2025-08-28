@@ -2,6 +2,7 @@ package br.com.portfoliopelusci.controller;
 
 
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import br.com.portfoliopelusci.config.OrganizadorProperties;
 import br.com.portfoliopelusci.service.OrganizadorService;
@@ -37,6 +38,18 @@ public class OrganizadorController {
             props.setDryRun(dryRun);
             service.processar();
             return "Processo concluído (dryRun=" + props.isDryRun() + ").";
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "Erro: " + e.getMessage();
+        }
+    }
+
+    /** Recebe um ZIP contendo as ordens e processa localmente */
+    @PostMapping("/upload")
+    public String organizarZip(@RequestParam("file") MultipartFile zip) {
+        try {
+            service.processarZip(zip);
+            return "Processo concluído (zip).";
         } catch (Exception e) {
             e.printStackTrace();
             return "Erro: " + e.getMessage();
