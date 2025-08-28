@@ -235,6 +235,50 @@ public class OrganizadorService {
         }
     }
 
+    public void processarZip() throws IOException {
+        Path zipPath = Path.of(props.getZipPath());
+        if (!Files.exists(zipPath) || !Files.isRegularFile(zipPath)) {
+            throw new IllegalArgumentException("Arquivo ZIP não encontrado: " + zipPath);
+        }
+
+        Path sourceRoot = Path.of(props.getSourceBasePath());
+        Files.createDirectories(sourceRoot);
+
+        String filename = zipPath.getFileName().toString();
+        String baseName = filename.endsWith(".zip") ? filename.substring(0, filename.length() - 4) : filename;
+        Path unzipDir = uniquePath(sourceRoot.resolve(baseName));
+
+        Files.createDirectories(unzipDir);
+        try (InputStream in = Files.newInputStream(zipPath)) {
+            unzip(in, unzipDir);
+        }
+
+        if (!Files.exists(unzipDir)) {
+            log("AVISO: Diretório de extração não criado: " + unzipDir);
+            return;
+        }
+
+        try (Stream<Path> stream = Files.list(unzipDir)) {
+            List<Path> entries = stream.collect(Collectors.toList());
+            if (entries.isEmpty()) {
+                log("AVISO: Arquivo ZIP vazio: " + filename);
+                return;
+            }
+            log("Arquivo ZIP processado: " + filename);
+            entries.stream()
+                   .filter(Files::isDirectory)
+                   .forEach(p -> log("Ordem encontrada: " + p.getFileName()));
+        }
+
+        String originalSource = props.getSourceBasePath();
+        try {
+            props.setSourceBasePath(unzipDir.toString());
+            processar();
+        } finally {
+            props.setSourceBasePath(originalSource);
+        }
+    }
+
     /* ===== Helpers ===== */
 
     private static void unzip(InputStream in, Path target) throws IOException {
