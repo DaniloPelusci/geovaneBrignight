@@ -141,6 +141,60 @@ public class OrganizadorService {
         }
     }
 
+    /**
+     * Cria pastas vazias para cada ordem listada na planilha.
+     * Usa o valor da coluna "WORDER" (ou o configurado em application.yml)
+     * e cria uma pasta com esse nome dentro de {@code sourceBasePath}.
+     */
+    public void criarPastas() throws IOException {
+        Path excel      = Path.of(props.getExcelPath());
+        Path baseDir    = Path.of(props.getSourceBasePath());
+        int sheetIndex  = props.getSheetIndex();
+        boolean dryRun  = props.isDryRun();
+
+        if (!Files.exists(excel)) {
+            throw new IllegalArgumentException("Planilha não encontrada: " + excel);
+        }
+        Files.createDirectories(baseDir);
+
+        try (Workbook wb = new XSSFWorkbook(Files.newInputStream(excel))) {
+            Sheet sheet = wb.getSheetAt(sheetIndex);
+            if (sheet == null) {
+                throw new IllegalArgumentException("Aba " + sheetIndex + " não encontrada no Excel.");
+            }
+
+            DataFormatter fmt = new DataFormatter();
+            Row header = sheet.getRow(sheet.getFirstRowNum());
+            if (header == null) {
+                throw new IllegalArgumentException("Cabeçalho não encontrado na planilha.");
+            }
+            Map<String, Integer> map = mapHeader(header, fmt);
+
+            String hNumero = props.getColumns() != null ? props.getColumns().getNumero() : "WORDER";
+            int idxNumero = idx(map, hNumero);
+
+            int first = sheet.getFirstRowNum() + 1;
+            int last  = sheet.getLastRowNum();
+            for (int r = first; r <= last; r++) {
+                Row row = sheet.getRow(r);
+                if (row == null) continue;
+
+                String numero = fmt.formatCellValue(row.getCell(idxNumero)).trim();
+                if (numero.isBlank()) continue;
+
+                Path dir = baseDir.resolve(safeName(numero));
+                if (Files.exists(dir)) {
+                    log("EXISTE: " + dir.getFileName());
+                } else if (dryRun) {
+                    log("[DRY-RUN] Criar pasta: " + dir);
+                } else {
+                    Files.createDirectories(dir);
+                    log("PASTA CRIADA: " + dir.getFileName());
+                }
+            }
+        }
+    }
+
     public void processarZip(MultipartFile zip) throws IOException {
         Path sourceRoot = Path.of(props.getSourceBasePath());
         Files.createDirectories(sourceRoot);
