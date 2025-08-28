@@ -203,14 +203,27 @@ public class OrganizadorService {
         String baseName = filename.endsWith(".zip") ? filename.substring(0, filename.length() - 4) : filename;
         Path unzipDir = uniquePath(sourceRoot.resolve(baseName));
 
+        // Garante que a pasta exista, mesmo que o ZIP esteja vazio
+        Files.createDirectories(unzipDir);
         try (InputStream in = zip.getInputStream()) {
             unzip(in, unzipDir);
         }
 
-        log("Arquivo ZIP recebido: " + filename);
+        if (!Files.exists(unzipDir)) {
+            log("AVISO: Diretório de extração não criado: " + unzipDir);
+            return;
+        }
+
         try (Stream<Path> stream = Files.list(unzipDir)) {
-            stream.filter(Files::isDirectory)
-                  .forEach(p -> log("Ordem encontrada: " + p.getFileName()));
+            List<Path> entries = stream.collect(Collectors.toList());
+            if (entries.isEmpty()) {
+                log("AVISO: Arquivo ZIP vazio: " + filename);
+                return;
+            }
+            log("Arquivo ZIP recebido: " + filename);
+            entries.stream()
+                   .filter(Files::isDirectory)
+                   .forEach(p -> log("Ordem encontrada: " + p.getFileName()));
         }
 
         String originalSource = props.getSourceBasePath();
