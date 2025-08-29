@@ -312,8 +312,10 @@ public class OrganizadorService {
 
         Path extractBase = Path.of(props.getSourceBasePath());
         Path destBase = Path.of(props.getDestBasePath());
+        Path allOrdersBase = Path.of(props.getAllOrdersBasePath());
         Files.createDirectories(extractBase);
         Files.createDirectories(destBase);
+        Files.createDirectories(allOrdersBase);
 
         Path tempDir = Files.createTempDirectory("zip-pai");
         try (InputStream in = Files.newInputStream(zipPai)) {
@@ -332,14 +334,20 @@ public class OrganizadorService {
 
                 try (Stream<Path> orders = Files.list(inspectorDir)) {
                     for (Path orderDir : orders.filter(Files::isDirectory).collect(Collectors.toList())) {
-                        Path target = destBase.resolve(baseName).resolve(orderDir.getFileName());
-                        Path finalTarget = uniquePath(target);
+                        Path inspectorTarget = destBase.resolve(baseName).resolve(orderDir.getFileName());
+                        Path finalInspectorTarget = uniquePath(inspectorTarget);
+                        Path allOrdersTarget = allOrdersBase.resolve(orderDir.getFileName());
+                        Path finalAllOrdersTarget = uniquePath(allOrdersTarget);
                         if (props.isDryRun()) {
-                            log("[DRY-RUN] Copiar: " + orderDir + " -> " + finalTarget);
+                            log("[DRY-RUN] Copiar: " + orderDir + " -> " + finalInspectorTarget);
+                            log("[DRY-RUN] Copiar: " + orderDir + " -> " + finalAllOrdersTarget);
                         } else {
-                            Files.createDirectories(finalTarget.getParent());
-                            copyDirectory(orderDir, finalTarget);
-                            log("COPIADO: " + orderDir.getFileName() + " -> " + finalTarget);
+                            Files.createDirectories(finalInspectorTarget.getParent());
+                            copyDirectory(orderDir, finalInspectorTarget);
+                            Files.createDirectories(finalAllOrdersTarget.getParent());
+                            copyDirectory(orderDir, finalAllOrdersTarget);
+                            log("COPIADO: " + orderDir.getFileName() + " -> " + finalInspectorTarget);
+                            log("COPIADO: " + orderDir.getFileName() + " -> " + finalAllOrdersTarget);
                         }
                     }
                 }

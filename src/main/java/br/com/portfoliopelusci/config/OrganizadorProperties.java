@@ -24,6 +24,9 @@ public class OrganizadorProperties {
     @NotBlank
     private String destBasePath;
 
+    @NotBlank
+    private String allOrdersBasePath;
+
     @NotNull
     private Integer sheetIndex = 0;
 
@@ -98,6 +101,13 @@ public class OrganizadorProperties {
     }
     public void setDestBasePath(String destBasePath) {
         this.destBasePath = destBasePath;
+    }
+
+    public String getAllOrdersBasePath() {
+        return allOrdersBasePath;
+    }
+    public void setAllOrdersBasePath(String allOrdersBasePath) {
+        this.allOrdersBasePath = allOrdersBasePath;
     }
 
     public Integer getSheetIndex() {
