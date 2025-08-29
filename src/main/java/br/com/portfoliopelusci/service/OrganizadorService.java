@@ -310,10 +310,8 @@ public class OrganizadorService {
             throw new IllegalArgumentException("ZIP pai não encontrado: " + zipPai);
         }
 
-        Path extractBase = Path.of(props.getSourceBasePath());
         Path destBase = Path.of(props.getDestBasePath());
         Path allOrdersBase = Path.of(props.getAllOrdersBasePath());
-        Files.createDirectories(extractBase);
         Files.createDirectories(destBase);
         Files.createDirectories(allOrdersBase);
 
@@ -326,28 +324,41 @@ public class OrganizadorService {
             for (Path innerZip : innerStream.filter(p -> Files.isRegularFile(p) && p.toString().toLowerCase().endsWith(".zip")).collect(Collectors.toList())) {
                 String inspectorName = innerZip.getFileName().toString();
                 String baseName = inspectorName.endsWith(".zip") ? inspectorName.substring(0, inspectorName.length() - 4) : inspectorName;
-                Path inspectorDir = extractBase.resolve(baseName);
-                Files.createDirectories(inspectorDir);
-                try (InputStream in = Files.newInputStream(innerZip)) {
-                    unzip(in, inspectorDir);
+                Path inspectorDir = destBase.resolve(baseName);
+                if (Files.exists(inspectorDir)) {
+                    if (props.isOverwriteExisting()) {
+                        if (!props.isDryRun()) deleteRecursively(inspectorDir);
+                    } else {
+                        log("IGNORADO: pasta do inspetor já existe: " + inspectorDir);
+                        continue;
+                    }
+                }
+                if (props.isDryRun()) {
+                    log("[DRY-RUN] Descompactar: " + innerZip + " -> " + inspectorDir);
+                } else {
+                    Files.createDirectories(inspectorDir);
+                    try (InputStream in = Files.newInputStream(innerZip)) {
+                        unzip(in, inspectorDir);
+                    }
                 }
 
                 try (Stream<Path> orders = Files.list(inspectorDir)) {
                     for (Path orderDir : orders.filter(Files::isDirectory).collect(Collectors.toList())) {
-                        Path inspectorTarget = destBase.resolve(baseName).resolve(orderDir.getFileName());
-                        Path finalInspectorTarget = uniquePath(inspectorTarget);
                         Path allOrdersTarget = allOrdersBase.resolve(orderDir.getFileName());
-                        Path finalAllOrdersTarget = uniquePath(allOrdersTarget);
+                        if (Files.exists(allOrdersTarget)) {
+                            if (props.isOverwriteExisting()) {
+                                if (!props.isDryRun()) deleteRecursively(allOrdersTarget);
+                            } else {
+                                log("IGNORADO: " + orderDir.getFileName() + " já existe em todas-as-ordens");
+                                continue;
+                            }
+                        }
                         if (props.isDryRun()) {
-                            log("[DRY-RUN] Copiar: " + orderDir + " -> " + finalInspectorTarget);
-                            log("[DRY-RUN] Copiar: " + orderDir + " -> " + finalAllOrdersTarget);
+                            log("[DRY-RUN] Copiar: " + orderDir + " -> " + allOrdersTarget);
                         } else {
-                            Files.createDirectories(finalInspectorTarget.getParent());
-                            copyDirectory(orderDir, finalInspectorTarget);
-                            Files.createDirectories(finalAllOrdersTarget.getParent());
-                            copyDirectory(orderDir, finalAllOrdersTarget);
-                            log("COPIADO: " + orderDir.getFileName() + " -> " + finalInspectorTarget);
-                            log("COPIADO: " + orderDir.getFileName() + " -> " + finalAllOrdersTarget);
+                            Files.createDirectories(allOrdersTarget.getParent());
+                            copyDirectory(orderDir, allOrdersTarget);
+                            log("COPIADO: " + orderDir.getFileName() + " -> " + allOrdersTarget);
                         }
                     }
                 }
@@ -430,6 +441,19 @@ public class OrganizadorService {
                     }
                 } catch (IOException e) {
                     throw new RuntimeException("Erro ao copiar: " + path + " -> " + e.getMessage(), e);
+                }
+            });
+        }
+    }
+
+    private static void deleteRecursively(Path path) throws IOException {
+        if (!Files.exists(path)) return;
+        try (var stream = Files.walk(path)) {
+            stream.sorted(Comparator.reverseOrder()).forEach(p -> {
+                try {
+                    Files.delete(p);
+                } catch (IOException e) {
+                    throw new RuntimeException("Erro ao deletar: " + p + " -> " + e.getMessage(), e);
                 }
             });
         }
