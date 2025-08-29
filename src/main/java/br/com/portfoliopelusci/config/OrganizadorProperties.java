@@ -16,6 +16,9 @@ public class OrganizadorProperties {
     private String zipFolderPath;
 
     @NotBlank
+    private String parentZipPath;
+
+    @NotBlank
     private String sourceBasePath;
 
     @NotBlank
@@ -74,6 +77,13 @@ public class OrganizadorProperties {
     }
     public void setZipFolderPath(String zipFolderPath) {
         this.zipFolderPath = zipFolderPath;
+    }
+
+    public String getParentZipPath() {
+        return parentZipPath;
+    }
+    public void setParentZipPath(String parentZipPath) {
+        this.parentZipPath = parentZipPath;
     }
 
     public String getSourceBasePath() {
