@@ -19,7 +19,16 @@ public class OrganizadorController {
         this.props = props;
     }
 
-    /** Dispara usando os valores do application.yml (padrão). */
+    /**
+     * Inicia o processo de organização utilizando as configurações padrão
+     * definidas no {@code application.yml}. Este método lê a planilha
+     * configurada, identifica as ordens existentes na pasta de origem e copia
+     * cada uma delas para a pasta de destino correspondente, respeitando o
+     * modo de execução definido em {@link OrganizadorProperties#isDryRun()}.
+     *
+     * @return mensagem indicando o resultado da operação e se foi apenas um
+     *         "dry run" (simulação) ou uma execução real
+     */
     @PostMapping
     public String organizar() {
         try {
@@ -31,7 +40,15 @@ public class OrganizadorController {
         }
     }
 
-    /** Opcional: permite sobrescrever dryRun rapidamente */
+    /**
+     * Variante do endpoint principal que permite sobrescrever rapidamente o
+     * valor de {@code dryRun}. Ao enviar {@code dryRun=false}, o processo passa
+     * a copiar/mover os arquivos de fato; caso contrário, apenas registra nos
+     * logs o que seria feito.
+     *
+     * @param dryRun indica se a execução deve ser apenas simulada
+     * @return mensagem com o status do processamento
+     */
     @PostMapping("/run")
     public String organizarComDry(@RequestParam(defaultValue = "true") boolean dryRun) {
         try {
@@ -44,7 +61,15 @@ public class OrganizadorController {
         }
     }
 
-    /** Cria pastas vazias para cada ordem presente na planilha */
+    /**
+     * Varre a planilha configurada e cria, dentro da pasta de origem,
+     * diretórios vazios para cada número de ordem encontrado. Útil para
+     * preparar a estrutura de diretórios antes do recebimento dos arquivos.
+     * O comportamento de criação pode ser apenas simulado quando
+     * {@code dryRun} estiver ativado.
+     *
+     * @return mensagem indicando o resultado da criação das pastas
+     */
     @PostMapping("/folders")
     public String criarPastas() {
         try {
@@ -56,7 +81,15 @@ public class OrganizadorController {
         }
     }
 
-    /** Recebe um ZIP contendo as ordens e processa localmente */
+    /**
+     * Recebe via upload um arquivo ZIP contendo múltiplas ordens. O conteúdo
+     * é extraído para a pasta de origem e, em seguida, o mesmo fluxo de
+     * organização do endpoint principal é executado sobre os arquivos
+     * extraídos.
+     *
+     * @param zip arquivo compactado com as pastas das ordens
+     * @return mensagem relatando a conclusão do processamento do ZIP
+     */
     @PostMapping("/upload")
     public String organizarZip(@RequestParam("file") MultipartFile zip) {
         try {
@@ -68,7 +101,14 @@ public class OrganizadorController {
         }
     }
 
-    /** Processa todos os ZIPs na pasta configurada */
+    /**
+     * Percorre uma pasta previamente configurada em busca de arquivos ZIP e
+     * processa cada um deles sequencialmente. Para cada ZIP encontrado é
+     * realizada a extração, seguida da execução do processo de organização.
+     *
+     * @return mensagem informando a finalização do processamento de todos os
+     *         ZIPs locais
+     */
     @PostMapping("/zip")
     public String organizarZipLocal() {
         try {
@@ -80,7 +120,14 @@ public class OrganizadorController {
         }
     }
 
-    /** Processa um ZIP que contém outros ZIPs */
+    /**
+     * Processa um arquivo ZIP "pai" que contém, em seu interior, outros
+     * arquivos ZIP (geralmente separados por inspetor). Cada ZIP interno é
+     * extraído e suas ordens são organizadas em diretórios que levam o nome do
+     * inspetor, mantendo a estrutura original.
+     *
+     * @return mensagem sobre a conclusão do processamento do ZIP pai
+     */
     @PostMapping("/zip-parent")
     public String organizarZipPai() {
         try {
