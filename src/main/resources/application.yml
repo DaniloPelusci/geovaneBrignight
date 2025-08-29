@@ -27,6 +27,7 @@ organizador:
   parent-zip-path: "C:/Dev/Projeto Danilo/testes/pai.zip"
   source-base-path: "C:/Dev/Projeto Danilo/testes/pastasteste"
   dest-base-path: "C:/Dev/Projeto Danilo/testes/pastatestecopia"
+  all-orders-base-path: "C:/Dev/Projeto Danilo/testes/todas-ordens"
   sheet-index: 0
   timezone: "America/Sao_Paulo"
   columns:
