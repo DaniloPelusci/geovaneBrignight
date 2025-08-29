@@ -35,3 +35,4 @@ organizador:
     tipo: "OTYPE"
     data: "DUEDATE"     # <- agora pega essa coluna
   dry-run: true
+  overwrite-existing: true

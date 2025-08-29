@@ -37,6 +37,8 @@ public class OrganizadorProperties {
 
     private boolean dryRun = true;
 
+    private boolean overwriteExisting = true;
+
     public static class Columns {
         @NotBlank
         private String numero = "Numero";
@@ -136,5 +138,12 @@ public class OrganizadorProperties {
     }
     public void setDryRun(boolean dryRun) {
         this.dryRun = dryRun;
+    }
+
+    public boolean isOverwriteExisting() {
+        return overwriteExisting;
+    }
+    public void setOverwriteExisting(boolean overwriteExisting) {
+        this.overwriteExisting = overwriteExisting;
     }
 }
