@@ -235,12 +235,29 @@ public class OrganizadorService {
         }
     }
 
-    public void processarZip() throws IOException {
-        Path zipPath = Path.of(props.getZipPath());
-        if (!Files.exists(zipPath) || !Files.isRegularFile(zipPath)) {
-            throw new IllegalArgumentException("Arquivo ZIP não encontrado: " + zipPath);
+    public void processarZips() throws IOException {
+        Path zipsDir = Path.of(props.getZipFolderPath());
+        if (!Files.exists(zipsDir) || !Files.isDirectory(zipsDir)) {
+            throw new IllegalArgumentException("Pasta de ZIPs não encontrada: " + zipsDir);
         }
 
+        List<Path> zipFiles;
+        try (Stream<Path> stream = Files.list(zipsDir)) {
+            zipFiles = stream.filter(p -> Files.isRegularFile(p) && p.toString().toLowerCase().endsWith(".zip"))
+                             .collect(Collectors.toList());
+        }
+
+        if (zipFiles.isEmpty()) {
+            log("AVISO: Nenhum arquivo ZIP encontrado em: " + zipsDir);
+            return;
+        }
+
+        for (Path zipPath : zipFiles) {
+            processZipFile(zipPath);
+        }
+    }
+
+    private void processZipFile(Path zipPath) throws IOException {
         Path sourceRoot = Path.of(props.getSourceBasePath());
         Files.createDirectories(sourceRoot);
 
