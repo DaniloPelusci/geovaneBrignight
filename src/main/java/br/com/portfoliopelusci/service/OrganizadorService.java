@@ -236,7 +236,11 @@ public class OrganizadorService {
     }
 
     public void processarZips() throws IOException {
-        Path zipsDir = Path.of(props.getZipFolderPath());
+        String zipFolderPath = props.getZipFolderPath();
+        if (zipFolderPath == null || zipFolderPath.isBlank()) {
+            throw new IllegalArgumentException("Caminho da pasta de ZIPs não definido.");
+        }
+        Path zipsDir = Path.of(zipFolderPath);
         if (!Files.exists(zipsDir) || !Files.isDirectory(zipsDir)) {
             throw new IllegalArgumentException("Pasta de ZIPs não encontrada: " + zipsDir);
         }
