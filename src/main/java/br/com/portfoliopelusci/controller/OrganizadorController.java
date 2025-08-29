@@ -68,12 +68,12 @@ public class OrganizadorController {
         }
     }
 
-    /** Processa o ZIP localizado no caminho configurado */
+    /** Processa todos os ZIPs na pasta configurada */
     @PostMapping("/zip")
     public String organizarZipLocal() {
         try {
-            service.processarZip();
-            return "Processo concluído (zip local).";
+            service.processarZips();
+            return "Processo concluído (zips locais).";
         } catch (Exception e) {
             e.printStackTrace();
             return "Erro: " + e.getMessage();
