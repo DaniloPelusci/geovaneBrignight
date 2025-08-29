@@ -300,6 +300,53 @@ public class OrganizadorService {
         }
     }
 
+    public void processarZipPai() throws IOException {
+        String parentZipPath = props.getParentZipPath();
+        if (parentZipPath == null || parentZipPath.isBlank()) {
+            throw new IllegalArgumentException("Caminho do ZIP pai não definido.");
+        }
+        Path zipPai = Path.of(parentZipPath);
+        if (!Files.exists(zipPai) || !Files.isRegularFile(zipPai)) {
+            throw new IllegalArgumentException("ZIP pai não encontrado: " + zipPai);
+        }
+
+        Path extractBase = Path.of(props.getSourceBasePath());
+        Path destBase = Path.of(props.getDestBasePath());
+        Files.createDirectories(extractBase);
+        Files.createDirectories(destBase);
+
+        Path tempDir = Files.createTempDirectory("zip-pai");
+        try (InputStream in = Files.newInputStream(zipPai)) {
+            unzip(in, tempDir);
+        }
+
+        try (Stream<Path> innerStream = Files.list(tempDir)) {
+            for (Path innerZip : innerStream.filter(p -> Files.isRegularFile(p) && p.toString().toLowerCase().endsWith(".zip")).collect(Collectors.toList())) {
+                String inspectorName = innerZip.getFileName().toString();
+                String baseName = inspectorName.endsWith(".zip") ? inspectorName.substring(0, inspectorName.length() - 4) : inspectorName;
+                Path inspectorDir = extractBase.resolve(baseName);
+                Files.createDirectories(inspectorDir);
+                try (InputStream in = Files.newInputStream(innerZip)) {
+                    unzip(in, inspectorDir);
+                }
+
+                try (Stream<Path> orders = Files.list(inspectorDir)) {
+                    for (Path orderDir : orders.filter(Files::isDirectory).collect(Collectors.toList())) {
+                        Path target = destBase.resolve(baseName).resolve(orderDir.getFileName());
+                        Path finalTarget = uniquePath(target);
+                        if (props.isDryRun()) {
+                            log("[DRY-RUN] Copiar: " + orderDir + " -> " + finalTarget);
+                        } else {
+                            Files.createDirectories(finalTarget.getParent());
+                            copyDirectory(orderDir, finalTarget);
+                            log("COPIADO: " + orderDir.getFileName() + " -> " + finalTarget);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     /* ===== Helpers ===== */
 
     private static void unzip(InputStream in, Path target) throws IOException {

@@ -79,4 +79,16 @@ public class OrganizadorController {
             return "Erro: " + e.getMessage();
         }
     }
+
+    /** Processa um ZIP que contém outros ZIPs */
+    @PostMapping("/zip-parent")
+    public String organizarZipPai() {
+        try {
+            service.processarZipPai();
+            return "Processo concluído (zip pai).";
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "Erro: " + e.getMessage();
+        }
+    }
 }
