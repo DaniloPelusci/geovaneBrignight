@@ -355,11 +355,9 @@ public class OrganizadorService {
     }
 
     /**
-     * Extrai todos os arquivos ZIP presentes na pasta informada e, em
-     * seguida, processa o conteúdo extraído utilizando o método principal
-     * {@link #processar()}, enviando o resultado para {@code destBasePath}.
-     * Cada ZIP é descompactado para uma subpasta com o mesmo nome (sem a
-     * extensão ".zip").
+     * Extrai todos os arquivos ZIP presentes na pasta informada.
+     * Cada ZIP é descompactado para uma subpasta com o mesmo nome
+     * (sem a extensão ".zip").
      *
      * @param folderPath caminho da pasta contendo os arquivos ZIP
      */
@@ -390,15 +388,6 @@ public class OrganizadorService {
                 fixNestedFolder(targetDir, baseName);
                 log("Arquivo ZIP extraído: " + fileName + " para " + targetDir);
             }
-        }
-
-        // Após a extração, processa as ordens movendo-as para destBasePath
-        String originalSource = props.getSourceBasePath();
-        try {
-            props.setSourceBasePath(dir.toString());
-            processar();
-        } finally {
-            props.setSourceBasePath(originalSource);
         }
     }
 
