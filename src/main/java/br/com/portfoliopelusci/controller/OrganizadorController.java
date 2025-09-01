@@ -157,4 +157,21 @@ public class OrganizadorController {
             return "Erro: " + e.getMessage();
         }
     }
+
+    /**
+     * Extrai todos os arquivos ZIP encontrados na pasta informada.
+     *
+     * @param path caminho da pasta contendo os arquivos ZIP
+     * @return mensagem indicando o resultado da extração
+     */
+    @PostMapping("/extrairTodos")
+    public String extrairTodos(@RequestParam("path") String path) {
+        try {
+            service.extrairTodos(path);
+            return "Extração concluída.";
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "Erro: " + e.getMessage();
+        }
+    }
 }
