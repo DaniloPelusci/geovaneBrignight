@@ -329,7 +329,7 @@ public class OrganizadorService {
                 String baseName = inspectorName.endsWith(".zip")
                         ? inspectorName.substring(0, inspectorName.length() - 4)
                         : inspectorName;
-                Path inspectorDir = tempDir.resolve(baseName);
+                Path inspectorDir = innerZip.getParent().resolve(baseName);
                 if (Files.exists(inspectorDir)) {
                     if (props.isOverwriteExisting()) {
                         if (!props.isDryRun()) deleteRecursively(inspectorDir);
