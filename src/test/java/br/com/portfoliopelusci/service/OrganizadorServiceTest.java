@@ -88,6 +88,40 @@ class OrganizadorServiceTest {
         assertEquals("A", Files.readString(ordemAll, StandardCharsets.UTF_8));
     }
 
+    @Test
+    void processarZipPaiExtraiZipsDeOrdens() throws IOException {
+        Path temp = Files.createTempDirectory("org3");
+        Path dest = temp.resolve("dest");
+        Path allOrders = temp.resolve("todas");
+        Files.createDirectories(dest);
+        Files.createDirectories(allOrders);
+
+        Path orderZip = createOrderZip(temp, "350394452", "dados");
+        Path inspectorZip = createInspectorZipComFilho(temp, "0828-Geovane", orderZip);
+        Path parentZip = temp.resolve("pai3.zip");
+        try (ZipOutputStream out = new ZipOutputStream(Files.newOutputStream(parentZip))) {
+            addZipEntry(out, inspectorZip);
+        }
+
+        OrganizadorProperties props = new OrganizadorProperties();
+        props.setExcelPath(temp.resolve("dummy.xlsx").toString());
+        props.setParentZipPath(parentZip.toString());
+        props.setSourceBasePath(temp.resolve("src").toString());
+        props.setDestBasePath(dest.toString());
+        props.setAllOrdersBasePath(allOrders.toString());
+        props.setDryRun(false);
+        props.setOverwriteExisting(true);
+
+        OrganizadorService service = new OrganizadorService(props);
+        service.processarZipPai();
+
+        Path ordemDest = dest.resolve("Geovane").resolve("0828-Geovane").resolve("350394452").resolve("data.txt");
+        Path ordemAll = allOrders.resolve("350394452").resolve("data.txt");
+        assertTrue(Files.exists(ordemDest));
+        assertTrue(Files.exists(ordemAll));
+        assertEquals("dados", Files.readString(ordemAll, StandardCharsets.UTF_8));
+    }
+
     private static Path createInspectorZip(Path dir, String inspector, String ordem, String content) throws IOException {
         Path zipPath = dir.resolve(inspector + ".zip");
         try (ZipOutputStream zout = new ZipOutputStream(Files.newOutputStream(zipPath))) {
@@ -95,6 +129,28 @@ class OrganizadorServiceTest {
             zout.closeEntry();
             zout.putNextEntry(new ZipEntry(ordem + "/data.txt"));
             zout.write(content.getBytes(StandardCharsets.UTF_8));
+            zout.closeEntry();
+        }
+        return zipPath;
+    }
+
+    private static Path createOrderZip(Path dir, String ordem, String content) throws IOException {
+        Path zipPath = dir.resolve(ordem + ".zip");
+        try (ZipOutputStream zout = new ZipOutputStream(Files.newOutputStream(zipPath))) {
+            zout.putNextEntry(new ZipEntry(ordem + "/"));
+            zout.closeEntry();
+            zout.putNextEntry(new ZipEntry(ordem + "/data.txt"));
+            zout.write(content.getBytes(StandardCharsets.UTF_8));
+            zout.closeEntry();
+        }
+        return zipPath;
+    }
+
+    private static Path createInspectorZipComFilho(Path dir, String inspector, Path childZip) throws IOException {
+        Path zipPath = dir.resolve(inspector + ".zip");
+        try (ZipOutputStream zout = new ZipOutputStream(Files.newOutputStream(zipPath))) {
+            zout.putNextEntry(new ZipEntry(childZip.getFileName().toString()));
+            Files.copy(childZip, zout);
             zout.closeEntry();
         }
         return zipPath;
