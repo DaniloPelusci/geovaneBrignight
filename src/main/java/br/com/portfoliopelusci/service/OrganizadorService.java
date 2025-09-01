@@ -355,6 +355,40 @@ public class OrganizadorService {
     }
 
     /**
+     * Extrai todos os arquivos ZIP presentes na pasta informada.
+     * Cada ZIP é descompactado para uma subpasta com o mesmo nome
+     * (sem a extensão ".zip").
+     *
+     * @param folderPath caminho da pasta contendo os arquivos ZIP
+     */
+    public void extrairTodos(String folderPath) throws IOException {
+        if (folderPath == null || folderPath.isBlank()) {
+            throw new IllegalArgumentException("Caminho da pasta não definido.");
+        }
+
+        Path dir = Path.of(folderPath);
+        if (!Files.exists(dir) || !Files.isDirectory(dir)) {
+            throw new IllegalArgumentException("Pasta de ZIPs não encontrada: " + dir);
+        }
+
+        try (Stream<Path> stream = Files.list(dir)) {
+            List<Path> zips = stream
+                    .filter(p -> Files.isRegularFile(p) && p.toString().toLowerCase().endsWith(".zip"))
+                    .collect(Collectors.toList());
+
+            for (Path zipPath : zips) {
+                String fileName = zipPath.getFileName().toString();
+                String baseName = fileName.endsWith(".zip") ? fileName.substring(0, fileName.length() - 4) : fileName;
+                Path targetDir = dir.resolve(baseName);
+                Files.createDirectories(targetDir);
+                try (InputStream in = Files.newInputStream(zipPath)) {
+                    unzip(in, targetDir);
+                }
+            }
+        }
+    }
+
+    /**
      * Processa o arquivo ZIP pai configurado nas propriedades.
      */
     public void processarZipPai() throws IOException {
