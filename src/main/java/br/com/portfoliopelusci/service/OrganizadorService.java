@@ -301,7 +301,10 @@ public class OrganizadorService {
     }
 
     public void processarZipPai() throws IOException {
-        String parentZipPath = props.getParentZipPath();
+        processarZipPai(props.getParentZipPath());
+    }
+
+    public void processarZipPai(String parentZipPath) throws IOException {
         if (parentZipPath == null || parentZipPath.isBlank()) {
             throw new IllegalArgumentException("Caminho do ZIP pai não definido.");
         }
