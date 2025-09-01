@@ -138,4 +138,23 @@ public class OrganizadorController {
             return "Erro: " + e.getMessage();
         }
     }
+
+    /**
+     * Variante que permite informar diretamente o caminho do ZIP pai a
+     * ser processado. O ZIP indicado é descompactado e cada ZIP interno é
+     * tratado como no endpoint padrão.
+     *
+     * @param path caminho completo do arquivo ZIP pai
+     * @return mensagem sobre a conclusão do processamento
+     */
+    @PostMapping("/zip-parent/path")
+    public String organizarZipPai(@RequestParam("path") String path) {
+        try {
+            service.processarZipPai(path);
+            return "Processo concluído (zip pai).";
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "Erro: " + e.getMessage();
+        }
+    }
 }
