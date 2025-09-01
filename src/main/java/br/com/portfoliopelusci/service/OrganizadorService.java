@@ -455,6 +455,7 @@ public class OrganizadorService {
                     try (InputStream in = Files.newInputStream(innerZip)) {
                         unzip(in, inspectorDir);
                     }
+                    fixNestedFolder(inspectorDir, baseName);
                 }
 
                 // Copia todas as ordens extraídas para o diretório consolidado
@@ -592,6 +593,22 @@ public class OrganizadorService {
                     throw new RuntimeException("Erro ao deletar: " + p + " -> " + e.getMessage(), e);
                 }
             });
+        }
+    }
+
+    /**
+     * Remove uma pasta duplicada quando o conteúdo do ZIP já contém
+     * um diretório com o mesmo nome do destino.
+     */
+    private static void fixNestedFolder(Path dir, String baseName) throws IOException {
+        Path nested = dir.resolve(baseName);
+        if (Files.exists(nested) && Files.isDirectory(nested)) {
+            try (Stream<Path> children = Files.list(nested)) {
+                for (Path child : children.collect(Collectors.toList())) {
+                    Files.move(child, dir.resolve(child.getFileName()), StandardCopyOption.REPLACE_EXISTING);
+                }
+            }
+            deleteRecursively(nested);
         }
     }
 

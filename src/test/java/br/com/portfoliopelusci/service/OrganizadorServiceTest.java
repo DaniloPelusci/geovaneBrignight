@@ -40,7 +40,7 @@ class OrganizadorServiceTest {
         OrganizadorService service = new OrganizadorService(props);
         service.processarZipPai();
 
-        Path ordemDest = dest.resolve("0828-Geovane").resolve("350394452").resolve("data.txt");
+        Path ordemDest = dest.resolve("Geovane").resolve("0828-Geovane").resolve("350394452").resolve("data.txt");
         Path ordemAll = allOrders.resolve("350394452").resolve("data.txt");
         assertTrue(Files.exists(ordemDest));
         assertTrue(Files.exists(ordemAll));
