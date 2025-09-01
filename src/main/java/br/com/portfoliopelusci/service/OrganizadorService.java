@@ -321,10 +321,14 @@ public class OrganizadorService {
         }
 
         try (Stream<Path> innerStream = Files.list(tempDir)) {
-            for (Path innerZip : innerStream.filter(p -> Files.isRegularFile(p) && p.toString().toLowerCase().endsWith(".zip")).collect(Collectors.toList())) {
+            for (Path innerZip : innerStream
+                    .filter(p -> Files.isRegularFile(p) && p.toString().toLowerCase().endsWith(".zip"))
+                    .collect(Collectors.toList())) {
                 String inspectorName = innerZip.getFileName().toString();
-                String baseName = inspectorName.endsWith(".zip") ? inspectorName.substring(0, inspectorName.length() - 4) : inspectorName;
-                Path inspectorDir = destBase.resolve(baseName);
+                String baseName = inspectorName.endsWith(".zip")
+                        ? inspectorName.substring(0, inspectorName.length() - 4)
+                        : inspectorName;
+                Path inspectorDir = tempDir.resolve(baseName);
                 if (Files.exists(inspectorDir)) {
                     if (props.isOverwriteExisting()) {
                         if (!props.isDryRun()) deleteRecursively(inspectorDir);
@@ -363,6 +367,14 @@ public class OrganizadorService {
                     }
                 }
             }
+        }
+
+        String originalSource = props.getSourceBasePath();
+        try {
+            props.setSourceBasePath(allOrdersBase.toString());
+            processar();
+        } finally {
+            props.setSourceBasePath(originalSource);
         }
     }
 
