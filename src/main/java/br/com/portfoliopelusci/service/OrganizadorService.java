@@ -462,26 +462,17 @@ public class OrganizadorService {
                     extrairTodos(inspectorDir.toString());
                 }
 
-                // Copia todas as ordens extraídas para o diretório consolidado
-                try (Stream<Path> orders = Files.list(inspectorDir)) {
-                    for (Path orderDir : orders.filter(Files::isDirectory).collect(Collectors.toList())) {
-                        Path allOrdersTarget = allOrdersBase.resolve(orderDir.getFileName());
-                        if (Files.exists(allOrdersTarget)) {
-                            if (props.isOverwriteExisting()) {
-                                if (!props.isDryRun()) deleteRecursively(allOrdersTarget);
-                            } else {
-                                log("IGNORADO: " + orderDir.getFileName() + " já existe em todas-as-ordens");
-                                continue;
-                            }
-                        }
-                        if (props.isDryRun()) {
-                            log("[DRY-RUN] Copiar: " + orderDir + " -> " + allOrdersTarget);
-                        } else {
-                            Files.createDirectories(allOrdersTarget.getParent());
-                            copyDirectory(orderDir, allOrdersTarget);
-                            log("COPIADO: " + orderDir.getFileName() + " -> " + allOrdersTarget);
-                        }
-                    }
+                // Organiza as ordens extraídas utilizando a lógica principal
+                // e copia o resultado para a pasta consolidada de todas as ordens
+                String originalSource = props.getSourceBasePath();
+                String originalDest   = props.getDestBasePath();
+                try {
+                    props.setSourceBasePath(inspectorDir.toString());
+                    props.setDestBasePath(allOrdersBase.toString());
+                    processar();
+                } finally {
+                    props.setSourceBasePath(originalSource);
+                    props.setDestBasePath(originalDest);
                 }
             }
         }

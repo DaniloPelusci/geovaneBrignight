@@ -1,6 +1,8 @@
 package br.com.portfoliopelusci.service;
 
 import br.com.portfoliopelusci.config.OrganizadorProperties;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -27,8 +29,10 @@ class OrganizadorServiceTest {
             addZipEntry(out, inspectorZip);
         }
 
+        Path excel = createExcel(temp.resolve("plan.xlsx"), "350394452", "A");
+
         OrganizadorProperties props = new OrganizadorProperties();
-        props.setExcelPath(temp.resolve("dummy.xlsx").toString());
+        props.setExcelPath(excel.toString());
         props.setZipFolderPath(temp.toString());
         props.setParentZipPath(parentZip.toString());
         props.setSourceBasePath(temp.resolve("src").toString());
@@ -41,7 +45,7 @@ class OrganizadorServiceTest {
         service.processarZipPai();
 
         Path ordemDest = dest.resolve("Geovane").resolve("0828-Geovane").resolve("350394452").resolve("data.txt");
-        Path ordemAll = allOrders.resolve("350394452").resolve("data.txt");
+        Path ordemAll = allOrders.resolve("A").resolve("350394452 A N").resolve("data.txt");
         assertTrue(Files.exists(ordemDest));
         assertTrue(Files.exists(ordemAll));
         assertEquals("dados", Files.readString(ordemAll, StandardCharsets.UTF_8));
@@ -61,8 +65,10 @@ class OrganizadorServiceTest {
             addZipEntry(out, inspectorZip1);
         }
 
+        Path excel = createExcel(temp.resolve("plan.xlsx"), "350394452", "A");
+
         OrganizadorProperties props = new OrganizadorProperties();
-        props.setExcelPath(temp.resolve("dummy.xlsx").toString());
+        props.setExcelPath(excel.toString());
         props.setZipFolderPath(temp.toString());
         props.setParentZipPath(parentZip1.toString());
         props.setSourceBasePath(temp.resolve("src").toString());
@@ -84,7 +90,7 @@ class OrganizadorServiceTest {
         props.setOverwriteExisting(false);
         service.processarZipPai();
 
-        Path ordemAll = allOrders.resolve("350394452").resolve("data.txt");
+        Path ordemAll = allOrders.resolve("A").resolve("350394452 A N").resolve("data.txt");
         assertEquals("A", Files.readString(ordemAll, StandardCharsets.UTF_8));
     }
 
@@ -103,8 +109,10 @@ class OrganizadorServiceTest {
             addZipEntry(out, inspectorZip);
         }
 
+        Path excel = createExcel(temp.resolve("plan.xlsx"), "350394452", "A");
+
         OrganizadorProperties props = new OrganizadorProperties();
-        props.setExcelPath(temp.resolve("dummy.xlsx").toString());
+        props.setExcelPath(excel.toString());
         props.setParentZipPath(parentZip.toString());
         props.setSourceBasePath(temp.resolve("src").toString());
         props.setDestBasePath(dest.toString());
@@ -116,10 +124,26 @@ class OrganizadorServiceTest {
         service.processarZipPai();
 
         Path ordemDest = dest.resolve("Geovane").resolve("0828-Geovane").resolve("350394452").resolve("data.txt");
-        Path ordemAll = allOrders.resolve("350394452").resolve("data.txt");
+        Path ordemAll = allOrders.resolve("A").resolve("350394452 A N").resolve("data.txt");
         assertTrue(Files.exists(ordemDest));
         assertTrue(Files.exists(ordemAll));
         assertEquals("dados", Files.readString(ordemAll, StandardCharsets.UTF_8));
+    }
+
+    private static Path createExcel(Path file, String numero, String tipo) throws IOException {
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet sheet = wb.createSheet();
+            Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("WORDER");
+            header.createCell(1).setCellValue("OTYPE");
+            Row row = sheet.createRow(1);
+            row.createCell(0).setCellValue(numero);
+            row.createCell(1).setCellValue(tipo);
+            try (var out = Files.newOutputStream(file)) {
+                wb.write(out);
+            }
+        }
+        return file;
     }
 
     private static Path createInspectorZip(Path dir, String inspector, String ordem, String content) throws IOException {
