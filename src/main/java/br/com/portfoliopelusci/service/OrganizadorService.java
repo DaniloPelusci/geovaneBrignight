@@ -325,11 +325,18 @@ public class OrganizadorService {
                     .filter(Files::isRegularFile)
                     .filter(p -> p.toString().toLowerCase().endsWith(".zip"))
                     .collect(Collectors.toList())) {
-                String inspectorName = innerZip.getFileName().toString();
-                String baseName = inspectorName.endsWith(".zip")
-                        ? inspectorName.substring(0, inspectorName.length() - 4)
-                        : inspectorName;
-                Path inspectorDir = innerZip.getParent().resolve(baseName);
+                String zipName = innerZip.getFileName().toString();
+                String rawBaseName = zipName.endsWith(".zip")
+                        ? zipName.substring(0, zipName.length() - 4)
+                        : zipName;
+                String inspectorPart = rawBaseName;
+                int dash = inspectorPart.indexOf('-');
+                if (dash >= 0 && dash + 1 < inspectorPart.length()) {
+                    inspectorPart = inspectorPart.substring(dash + 1);
+                }
+                String inspectorFolder = safeName(capitalize(inspectorPart));
+                String baseName = safeName(rawBaseName);
+                Path inspectorDir = destBase.resolve(inspectorFolder).resolve(baseName);
                 if (Files.exists(inspectorDir)) {
                     if (props.isOverwriteExisting()) {
                         if (!props.isDryRun()) deleteRecursively(inspectorDir);
@@ -368,14 +375,6 @@ public class OrganizadorService {
                     }
                 }
             }
-        }
-
-        String originalSource = props.getSourceBasePath();
-        try {
-            props.setSourceBasePath(allOrdersBase.toString());
-            processar();
-        } finally {
-            props.setSourceBasePath(originalSource);
         }
     }
 
@@ -495,6 +494,11 @@ public class OrganizadorService {
         if (s == null) return "";
         String n = Normalizer.normalize(s, Normalizer.Form.NFD).replaceAll("\\p{M}", "");
         return n.toLowerCase(Locale.ROOT).trim();
+    }
+
+    private static String capitalize(String s) {
+        if (s == null || s.isBlank()) return s;
+        return s.substring(0, 1).toUpperCase(Locale.ROOT) + s.substring(1).toLowerCase(Locale.ROOT);
     }
 
     private static String safeName(String s) {
