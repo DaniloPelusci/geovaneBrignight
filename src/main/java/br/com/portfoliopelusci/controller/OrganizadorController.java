@@ -123,8 +123,8 @@ public class OrganizadorController {
     /**
      * Processa um arquivo ZIP "pai" que contém, em seu interior, outros
      * arquivos ZIP (geralmente separados por inspetor). Cada ZIP interno é
-     * extraído e suas ordens são organizadas em diretórios que levam o nome do
-     * inspetor, mantendo a estrutura original.
+     * extraído para uma pasta nomeada com o inspetor e o nome do ZIP, e uma
+     * cópia das ordens é enviada para a pasta central de todas as ordens.
      *
      * @return mensagem sobre a conclusão do processamento do ZIP pai
      */
