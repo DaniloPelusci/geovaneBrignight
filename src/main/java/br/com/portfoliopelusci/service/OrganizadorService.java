@@ -476,62 +476,9 @@ public class OrganizadorService {
                 }
             }
         }
-
-        // Após organizar todas as ordens, renomeia as pastas de origem para
-        // refletir o nome final presente em allOrdersBasePath.
-        renameLeafFolders(destBase, allOrdersBase);
     }
 
     /* ===== Helpers ===== */
-
-    /**
-     * Renomeia os diretórios de último nível em {@code sourceRoot} para que
-     * correspondam aos nomes gerados em {@code allOrdersRoot}. O mapeamento é
-     * feito com base no número da ordem, extraído do nome final (antes do
-     * primeiro espaço).
-     */
-    private void renameLeafFolders(Path sourceRoot, Path allOrdersRoot) throws IOException {
-        if (!Files.exists(sourceRoot) || !Files.isDirectory(sourceRoot)) return;
-        if (!Files.exists(allOrdersRoot) || !Files.isDirectory(allOrdersRoot)) return;
-
-        Map<String, String> nameMap = new HashMap<>();
-        try (Stream<Path> typeDirs = Files.list(allOrdersRoot)) {
-            for (Path typeDir : typeDirs.filter(Files::isDirectory).collect(Collectors.toList())) {
-                try (Stream<Path> orders = Files.list(typeDir)) {
-                    for (Path order : orders.filter(Files::isDirectory).collect(Collectors.toList())) {
-                        String finalName = order.getFileName().toString();
-                        String numero = finalName.split(" ")[0];
-                        nameMap.put(numero, finalName);
-                    }
-                }
-            }
-        }
-
-        if (nameMap.isEmpty()) return;
-
-        try (Stream<Path> dirs = Files.walk(sourceRoot)) {
-            for (Path dir : dirs.filter(Files::isDirectory).collect(Collectors.toList())) {
-                if (!isLeaf(dir)) continue;
-                String nome = dir.getFileName().toString();
-                String novoNome = nameMap.get(nome);
-                if (novoNome != null && !novoNome.equals(nome)) {
-                    Path target = uniquePath(dir.getParent().resolve(safeName(novoNome)));
-                    if (props.isDryRun()) {
-                        log("[DRY-RUN] Renomear: " + dir + " -> " + target);
-                    } else {
-                        Files.move(dir, target);
-                    }
-                }
-            }
-        }
-    }
-
-    /** Verifica se o diretório não possui subpastas. */
-    private static boolean isLeaf(Path dir) throws IOException {
-        try (Stream<Path> stream = Files.list(dir)) {
-            return stream.noneMatch(Files::isDirectory);
-        }
-    }
 
     /**
      * Descompacta um arquivo ZIP a partir de um {@link InputStream}
