@@ -424,16 +424,17 @@ public class OrganizadorService {
             unzip(in, tempDir);
         }
 
-        // Para cada ZIP interno encontrado, extrai e copia as ordens
-        try (Stream<Path> innerStream = Files.walk(tempDir)) {
-            for (Path innerZip : innerStream
-                    .filter(Files::isRegularFile)
-                    .filter(p -> p.toString().toLowerCase().endsWith(".zip"))
-                    .collect(Collectors.toList())) {
-                String zipName = innerZip.getFileName().toString();
-                String rawBaseName = zipName.endsWith(".zip")
-                        ? zipName.substring(0, zipName.length() - 4)
-                        : zipName;
+        // Para cada ZIP interno ou pasta encontrada, extrai e copia as ordens
+        try (Stream<Path> entries = Files.list(tempDir)) {
+            for (Path entry : entries.collect(Collectors.toList())) {
+                String entryName = entry.getFileName().toString();
+                boolean isZip = Files.isRegularFile(entry) && entryName.toLowerCase().endsWith(".zip");
+                boolean isDir = Files.isDirectory(entry);
+                if (!isZip && !isDir) continue;
+
+                String rawBaseName = isZip
+                        ? entryName.substring(0, entryName.length() - 4)
+                        : entryName;
                 String inspectorPart = rawBaseName;
                 int dash = inspectorPart.indexOf('-');
                 if (dash >= 0 && dash + 1 < inspectorPart.length()) {
@@ -451,13 +452,19 @@ public class OrganizadorService {
                     }
                 }
                 if (props.isDryRun()) {
-                    log("[DRY-RUN] Descompactar: " + innerZip + " -> " + inspectorDir);
+                    String action = isZip ? "Descompactar" : "Copiar";
+                    log("[DRY-RUN] " + action + ": " + entry + " -> " + inspectorDir);
                 } else {
-                    Files.createDirectories(inspectorDir);
-                    try (InputStream in = Files.newInputStream(innerZip)) {
-                        unzip(in, inspectorDir);
+                    if (isZip) {
+                        Files.createDirectories(inspectorDir);
+                        try (InputStream in = Files.newInputStream(entry)) {
+                            unzip(in, inspectorDir);
+                        }
+                        fixNestedFolder(inspectorDir, baseName);
+                    } else {
+                        Files.createDirectories(inspectorDir.getParent());
+                        copyDirectory(entry, inspectorDir);
                     }
-                    fixNestedFolder(inspectorDir, baseName);
                     // Extrai eventuais ZIPs de ordens já organizando as pastas
                     extrairTodos(inspectorDir.toString());
                 }
