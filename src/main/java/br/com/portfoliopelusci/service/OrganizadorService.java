@@ -383,6 +383,7 @@ public class OrganizadorService {
                 Files.createDirectories(targetDir);
                 try (InputStream in = Files.newInputStream(zipPath)) {
                     unzip(in, targetDir);
+                    log("Arquivo ZIP extraído: " + fileName + " para " + targetDir);
                 }
             }
         }
