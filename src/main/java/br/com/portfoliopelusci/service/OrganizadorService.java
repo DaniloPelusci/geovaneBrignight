@@ -320,15 +320,16 @@ public class OrganizadorService {
             unzip(in, tempDir);
         }
 
-        try (Stream<Path> innerStream = Files.list(tempDir)) {
+        try (Stream<Path> innerStream = Files.walk(tempDir)) {
             for (Path innerZip : innerStream
-                    .filter(p -> Files.isRegularFile(p) && p.toString().toLowerCase().endsWith(".zip"))
+                    .filter(Files::isRegularFile)
+                    .filter(p -> p.toString().toLowerCase().endsWith(".zip"))
                     .collect(Collectors.toList())) {
                 String inspectorName = innerZip.getFileName().toString();
                 String baseName = inspectorName.endsWith(".zip")
                         ? inspectorName.substring(0, inspectorName.length() - 4)
                         : inspectorName;
-                Path inspectorDir = tempDir.resolve(baseName);
+                Path inspectorDir = innerZip.getParent().resolve(baseName);
                 if (Files.exists(inspectorDir)) {
                     if (props.isOverwriteExisting()) {
                         if (!props.isDryRun()) deleteRecursively(inspectorDir);
