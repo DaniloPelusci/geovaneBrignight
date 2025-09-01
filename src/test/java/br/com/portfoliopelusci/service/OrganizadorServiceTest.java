@@ -130,6 +130,33 @@ class OrganizadorServiceTest {
         assertEquals("dados", Files.readString(ordemAll, StandardCharsets.UTF_8));
     }
 
+    @Test
+    void extrairTodosProcessaOrdensParaDestBase() throws IOException {
+        Path temp = Files.createTempDirectory("org4");
+        Path dest = temp.resolve("dest");
+        Files.createDirectories(dest);
+
+        createOrderZip(temp, "350394452", "dados");
+        Path excel = createExcel(temp.resolve("plan.xlsx"), "350394452", "A");
+
+        OrganizadorProperties props = new OrganizadorProperties();
+        props.setExcelPath(excel.toString());
+        props.setSourceBasePath(temp.toString());
+        props.setDestBasePath(dest.toString());
+        props.setZipFolderPath(temp.toString());
+        props.setParentZipPath(temp.resolve("pai.zip").toString());
+        props.setAllOrdersBasePath(dest.resolve("todas").toString());
+        props.setDryRun(false);
+        props.setOverwriteExisting(true);
+
+        OrganizadorService service = new OrganizadorService(props);
+        service.extrairTodos(temp.toString());
+
+        Path ordemDest = dest.resolve("A").resolve("350394452 A N").resolve("data.txt");
+        assertTrue(Files.exists(ordemDest));
+        assertEquals("dados", Files.readString(ordemDest, StandardCharsets.UTF_8));
+    }
+
     private static Path createExcel(Path file, String numero, String tipo) throws IOException {
         try (Workbook wb = new XSSFWorkbook()) {
             Sheet sheet = wb.createSheet();
