@@ -19,36 +19,58 @@ import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
+/**
+ * Serviço responsável por organizar os arquivos de ordem de serviço
+ * com base nas informações fornecidas em uma planilha Excel. Também
+ * disponibiliza operações auxiliares para criação de pastas e
+ * processamento de arquivos ZIP.
+ */
 @Service
 public class OrganizadorService {
 
+    /** Configurações injetadas a partir do arquivo de propriedades. */
     private final OrganizadorProperties props;
 
+    /**
+     * Construtor padrão que recebe as propriedades de configuração.
+     *
+     * @param props configurações utilizadas pelo serviço
+     */
     public OrganizadorService(OrganizadorProperties props) {
         this.props = props;
     }
 
+    /**
+     * Processa a planilha e copia cada ordem de serviço para
+     * a pasta de destino adequada, de acordo com o tipo e a
+     * urgência calculada.
+     */
     public void processar() throws IOException {
+        // Caminho do Excel e diretórios de origem/destino
         Path excel      = Path.of(props.getExcelPath());
         Path sourceBase = Path.of(props.getSourceBasePath());
         Path destBase   = Path.of(props.getDestBasePath());
         int sheetIndex  = props.getSheetIndex();
         boolean dryRun  = props.isDryRun();
 
+        // Valida existência dos caminhos configurados
         if (!Files.exists(excel)) {
             throw new IllegalArgumentException("Planilha não encontrada: " + excel);
         }
         if (!Files.isDirectory(sourceBase)) {
             throw new IllegalArgumentException("Pasta de origem inválida: " + sourceBase);
         }
+        // Garante que a pasta de destino exista
         Files.createDirectories(destBase);
 
+        // Lista todas as pastas existentes na origem para detectar
+        // quais não foram mencionadas na planilha
         Set<Path> restantes;
         try (Stream<Path> stream = Files.list(sourceBase)) {
             restantes = stream.filter(Files::isDirectory).collect(Collectors.toSet());
         }
 
-        // Timezone (default SP)
+        // Define timezone para operações com datas (padrão: São Paulo)
         String tz = "America/Sao_Paulo";
         try {
             String configuredTz = (props.getTimezone() != null && !props.getTimezone().isBlank())
@@ -60,12 +82,14 @@ public class OrganizadorService {
         LocalDate hoje = LocalDate.now(zone);
 
         try (Workbook wb = new XSSFWorkbook(Files.newInputStream(excel))) {
+            // Abre a aba desejada da planilha
             Sheet sheet = wb.getSheetAt(sheetIndex);
             if (sheet == null) throw new IllegalArgumentException("Aba " + sheetIndex + " não encontrada no Excel.");
 
             DataFormatter fmt = new DataFormatter();
             Row header = sheet.getRow(sheet.getFirstRowNum());
             if (header == null) throw new IllegalArgumentException("Cabeçalho não encontrado na planilha.");
+            // Mapeia os índices das colunas pelo nome do cabeçalho
             Map<String, Integer> map = mapHeader(header, fmt);
 
             String hNumero = props.getColumns() != null ? props.getColumns().getNumero() : "WORDER";
@@ -80,10 +104,12 @@ public class OrganizadorService {
             int first = sheet.getFirstRowNum() + 1;
             int last  = sheet.getLastRowNum();
 
+            // Percorre todas as linhas de dados da planilha
             for (int r = first; r <= last; r++) {
                 Row row = sheet.getRow(r);
                 if (row == null) continue;
 
+                // Lê número, tipo e data de vencimento da linha
                 String numero = fmt.formatCellValue(row.getCell(idxNumero)).trim();
                 String tipo   = fmt.formatCellValue(row.getCell(idxTipo)).trim();
                 LocalDate due = readLocalDate(row.getCell(idxData), fmt, zone);
@@ -100,6 +126,7 @@ public class OrganizadorService {
                     log("AVISO (linha " + (r+1) + "): Data inválida (Numero=" + numero + "). Usando URGENCIA=SEM_DATA.");
                 }
 
+                // Calcula a urgência (R=atrasado, Y=hoje, B=futuro, N=sem data)
                 String urg = computeUrgencia(hoje, due); // R | Y | B | N
 
                 // Pasta origem (original) pelo número
@@ -128,6 +155,7 @@ public class OrganizadorService {
             }
         }
 
+        // Move as pastas que não estavam na planilha para uma pasta especial
         Path semDocDir = sourceBase.resolve(safeName("não tem no documento"));
         Files.createDirectories(semDocDir);
         for (Path dir : restantes) {
@@ -147,11 +175,13 @@ public class OrganizadorService {
      * e cria uma pasta com esse nome dentro de {@code sourceBasePath}.
      */
     public void criarPastas() throws IOException {
+        // Caminhos e configuração básica
         Path excel      = Path.of(props.getExcelPath());
         Path baseDir    = Path.of(props.getSourceBasePath());
         int sheetIndex  = props.getSheetIndex();
         boolean dryRun  = props.isDryRun();
 
+        // Garante existência dos arquivos/pastas necessários
         if (!Files.exists(excel)) {
             throw new IllegalArgumentException("Planilha não encontrada: " + excel);
         }
@@ -168,6 +198,7 @@ public class OrganizadorService {
             if (header == null) {
                 throw new IllegalArgumentException("Cabeçalho não encontrado na planilha.");
             }
+            // Obtém índice da coluna com o número da ordem
             Map<String, Integer> map = mapHeader(header, fmt);
 
             String hNumero = props.getColumns() != null ? props.getColumns().getNumero() : "WORDER";
@@ -175,6 +206,7 @@ public class OrganizadorService {
 
             int first = sheet.getFirstRowNum() + 1;
             int last  = sheet.getLastRowNum();
+            // Para cada linha cria uma pasta com o número informado
             for (int r = first; r <= last; r++) {
                 Row row = sheet.getRow(r);
                 if (row == null) continue;
@@ -195,7 +227,12 @@ public class OrganizadorService {
         }
     }
 
+    /**
+     * Processa um único arquivo ZIP enviado via upload e executa o
+     * método {@link #processar()} sobre o conteúdo extraído.
+     */
     public void processarZip(MultipartFile zip) throws IOException {
+        // Diretório base onde o conteúdo será extraído
         Path sourceRoot = Path.of(props.getSourceBasePath());
         Files.createDirectories(sourceRoot);
 
@@ -209,11 +246,13 @@ public class OrganizadorService {
             unzip(in, unzipDir);
         }
 
+        // Se algo deu errado na extração aborta o processamento
         if (!Files.exists(unzipDir)) {
             log("AVISO: Diretório de extração não criado: " + unzipDir);
             return;
         }
 
+        // Loga as pastas encontradas após a extração
         try (Stream<Path> stream = Files.list(unzipDir)) {
             List<Path> entries = stream.collect(Collectors.toList());
             if (entries.isEmpty()) {
@@ -226,6 +265,7 @@ public class OrganizadorService {
                    .forEach(p -> log("Ordem encontrada: " + p.getFileName()));
         }
 
+        // Processa o conteúdo extraído reutilizando o método principal
         String originalSource = props.getSourceBasePath();
         try {
             props.setSourceBasePath(unzipDir.toString());
@@ -235,6 +275,10 @@ public class OrganizadorService {
         }
     }
 
+    /**
+     * Processa todos os arquivos ZIP encontrados na pasta configurada,
+     * executando {@link #processZipFile(Path)} para cada um deles.
+     */
     public void processarZips() throws IOException {
         String zipFolderPath = props.getZipFolderPath();
         if (zipFolderPath == null || zipFolderPath.isBlank()) {
@@ -245,6 +289,7 @@ public class OrganizadorService {
             throw new IllegalArgumentException("Pasta de ZIPs não encontrada: " + zipsDir);
         }
 
+        // Lista todos os arquivos ZIP presentes na pasta configurada
         List<Path> zipFiles;
         try (Stream<Path> stream = Files.list(zipsDir)) {
             zipFiles = stream.filter(p -> Files.isRegularFile(p) && p.toString().toLowerCase().endsWith(".zip"))
@@ -256,11 +301,16 @@ public class OrganizadorService {
             return;
         }
 
+        // Processa cada arquivo ZIP individualmente
         for (Path zipPath : zipFiles) {
             processZipFile(zipPath);
         }
     }
 
+    /**
+     * Processa um arquivo ZIP localizado no sistema de arquivos.
+     * O conteúdo é extraído e tratado pelo método {@link #processar()}.
+     */
     private void processZipFile(Path zipPath) throws IOException {
         Path sourceRoot = Path.of(props.getSourceBasePath());
         Files.createDirectories(sourceRoot);
@@ -269,16 +319,19 @@ public class OrganizadorService {
         String baseName = filename.endsWith(".zip") ? filename.substring(0, filename.length() - 4) : filename;
         Path unzipDir = uniquePath(sourceRoot.resolve(baseName));
 
+        // Extrai o ZIP para uma pasta temporária
         Files.createDirectories(unzipDir);
         try (InputStream in = Files.newInputStream(zipPath)) {
             unzip(in, unzipDir);
         }
 
+        // Verifica se a extração ocorreu corretamente
         if (!Files.exists(unzipDir)) {
             log("AVISO: Diretório de extração não criado: " + unzipDir);
             return;
         }
 
+        // Lista as ordens encontradas no ZIP
         try (Stream<Path> stream = Files.list(unzipDir)) {
             List<Path> entries = stream.collect(Collectors.toList());
             if (entries.isEmpty()) {
@@ -291,6 +344,7 @@ public class OrganizadorService {
                    .forEach(p -> log("Ordem encontrada: " + p.getFileName()));
         }
 
+        // Processa as ordens extraídas reutilizando método principal
         String originalSource = props.getSourceBasePath();
         try {
             props.setSourceBasePath(unzipDir.toString());
@@ -300,10 +354,18 @@ public class OrganizadorService {
         }
     }
 
+    /**
+     * Processa o arquivo ZIP pai configurado nas propriedades.
+     */
     public void processarZipPai() throws IOException {
         processarZipPai(props.getParentZipPath());
     }
 
+    /**
+     * Processa um arquivo ZIP pai que contém diversos arquivos ZIP de
+     * inspetores. Cada ZIP interno é extraído para uma pasta separada
+     * e suas ordens são copiadas para um diretório consolidado.
+     */
     public void processarZipPai(String parentZipPath) throws IOException {
         if (parentZipPath == null || parentZipPath.isBlank()) {
             throw new IllegalArgumentException("Caminho do ZIP pai não definido.");
@@ -313,16 +375,19 @@ public class OrganizadorService {
             throw new IllegalArgumentException("ZIP pai não encontrado: " + zipPai);
         }
 
+        // Pastas de destino
         Path destBase = Path.of(props.getDestBasePath());
         Path allOrdersBase = Path.of(props.getAllOrdersBasePath());
         Files.createDirectories(destBase);
         Files.createDirectories(allOrdersBase);
 
+        // Descompacta o ZIP pai em uma pasta temporária
         Path tempDir = Files.createTempDirectory("zip-pai");
         try (InputStream in = Files.newInputStream(zipPai)) {
             unzip(in, tempDir);
         }
 
+        // Para cada ZIP interno encontrado, extrai e copia as ordens
         try (Stream<Path> innerStream = Files.walk(tempDir)) {
             for (Path innerZip : innerStream
                     .filter(Files::isRegularFile)
@@ -357,6 +422,7 @@ public class OrganizadorService {
                     }
                 }
 
+                // Copia todas as ordens extraídas para o diretório consolidado
                 try (Stream<Path> orders = Files.list(inspectorDir)) {
                     for (Path orderDir : orders.filter(Files::isDirectory).collect(Collectors.toList())) {
                         Path allOrdersTarget = allOrdersBase.resolve(orderDir.getFileName());
@@ -383,6 +449,10 @@ public class OrganizadorService {
 
     /* ===== Helpers ===== */
 
+    /**
+     * Descompacta um arquivo ZIP a partir de um {@link InputStream}
+     * para o diretório informado, criando as pastas conforme necessário.
+     */
     private static void unzip(InputStream in, Path target) throws IOException {
         try (ZipInputStream zin = new ZipInputStream(in)) {
             ZipEntry entry;
@@ -401,6 +471,13 @@ public class OrganizadorService {
         }
     }
 
+    /**
+     * Calcula a urgência de uma ordem com base na data de vencimento.
+     *
+     * @param hoje data atual
+     * @param data data de vencimento
+     * @return código de urgência
+     */
     private static String computeUrgencia(LocalDate hoje, LocalDate data) {
         if (data == null) return "N";
         if (data.isBefore(hoje)) return "R";
@@ -408,7 +485,10 @@ public class OrganizadorService {
         return "B";
     }
 
-    // Lê datas do Excel suportando célula de data nativa e texto (MM/dd/yyyy, ISO)
+    /**
+     * Lê datas do Excel, suportando tanto células de data nativas
+     * quanto texto em diferentes formatos (MM/dd/yyyy, ISO etc.).
+     */
     private static LocalDate readLocalDate(Cell cell, DataFormatter fmt, ZoneId zone) {
         if (cell == null) return null;
 
@@ -442,6 +522,9 @@ public class OrganizadorService {
         return null;
     }
 
+    /**
+     * Copia recursivamente uma pasta para outra localização.
+     */
     private static void copyDirectory(Path source, Path target) throws IOException {
         try (var stream = Files.walk(source)) {
             stream.forEach(path -> {
@@ -461,6 +544,9 @@ public class OrganizadorService {
         }
     }
 
+    /**
+     * Remove recursivamente um diretório e todo o seu conteúdo.
+     */
     private static void deleteRecursively(Path path) throws IOException {
         if (!Files.exists(path)) return;
         try (var stream = Files.walk(path)) {
@@ -474,6 +560,9 @@ public class OrganizadorService {
         }
     }
 
+    /**
+     * Cria um mapa de nome de coluna para índice baseado no cabeçalho do Excel.
+     */
     private static Map<String, Integer> mapHeader(Row header, DataFormatter fmt) {
         Map<String, Integer> map = new HashMap<>();
         for (int c = header.getFirstCellNum(); c < header.getLastCellNum(); c++) {
@@ -485,6 +574,9 @@ public class OrganizadorService {
         return map;
     }
 
+    /**
+     * Obtém o índice de uma coluna pelo nome normalizado.
+     */
     private static int idx(Map<String, Integer> colIndex, String headerName) {
         Integer idx = colIndex.get(normalize(headerName));
         if (idx == null) {
@@ -493,17 +585,26 @@ public class OrganizadorService {
         return idx;
     }
 
+    /**
+     * Normaliza um texto removendo acentos e convertendo para minúsculas.
+     */
     private static String normalize(String s) {
         if (s == null) return "";
         String n = Normalizer.normalize(s, Normalizer.Form.NFD).replaceAll("\\p{M}", "");
         return n.toLowerCase(Locale.ROOT).trim();
     }
 
+    /**
+     * Coloca a primeira letra em maiúscula e o restante em minúscula.
+     */
     private static String capitalize(String s) {
         if (s == null || s.isBlank()) return s;
         return s.substring(0, 1).toUpperCase(Locale.ROOT) + s.substring(1).toLowerCase(Locale.ROOT);
     }
 
+    /**
+     * Ajusta um nome para ser seguro para uso em sistemas de arquivos.
+     */
     private static String safeName(String s) {
         String n = s;
         n = n.replaceAll("\\p{Cntrl}", " ");
@@ -515,6 +616,10 @@ public class OrganizadorService {
         return n;
     }
 
+    /**
+     * Gera um caminho único caso o destino já exista, adicionando
+     * um sufixo numérico incremental.
+     */
     private static Path uniquePath(Path dest) {
         if (!Files.exists(dest)) return dest;
         String base = dest.getFileName().toString();
@@ -527,6 +632,7 @@ public class OrganizadorService {
         }
     }
 
+    /** Escreve uma mensagem simples no console. */
     private static void log(String s) {
         System.out.println(s);
     }
