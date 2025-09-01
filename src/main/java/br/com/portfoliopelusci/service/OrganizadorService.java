@@ -383,8 +383,10 @@ public class OrganizadorService {
                 Files.createDirectories(targetDir);
                 try (InputStream in = Files.newInputStream(zipPath)) {
                     unzip(in, targetDir);
-                    log("Arquivo ZIP extraído: " + fileName + " para " + targetDir);
                 }
+                // Remove eventual pasta duplicada criada pelo ZIP
+                fixNestedFolder(targetDir, baseName);
+                log("Arquivo ZIP extraído: " + fileName + " para " + targetDir);
             }
         }
     }
@@ -456,6 +458,8 @@ public class OrganizadorService {
                         unzip(in, inspectorDir);
                     }
                     fixNestedFolder(inspectorDir, baseName);
+                    // Extrai eventuais ZIPs de ordens já organizando as pastas
+                    extrairTodos(inspectorDir.toString());
                 }
 
                 // Copia todas as ordens extraídas para o diretório consolidado
