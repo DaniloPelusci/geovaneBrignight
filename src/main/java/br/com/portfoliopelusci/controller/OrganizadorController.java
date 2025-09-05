@@ -159,6 +159,38 @@ public class OrganizadorController {
     }
 
     /**
+     * Atualiza dinamicamente os caminhos utilizados pelo serviço para localizar
+     * a planilha e as pastas de origem e destino. Também permite sobrescrever os
+     * diretórios relacionados ao processamento de arquivos ZIP.
+     *
+     * @param excel caminho da planilha Excel
+     * @param source pasta base onde estão as ordens de serviço
+     * @param dest pasta base onde as ordens serão copiadas
+     * @param zipFolder (opcional) pasta que contém arquivos ZIP a serem
+     *                  processados
+     * @param parentZip (opcional) caminho do arquivo ZIP "pai"
+     * @param allOrders (opcional) pasta central onde todas as ordens serão
+     *                  armazenadas
+     * @return mensagem indicando que as configurações foram atualizadas
+     */
+    @PostMapping("/paths")
+    public String configurarCaminhos(
+            @RequestParam("excel") String excel,
+            @RequestParam("source") String source,
+            @RequestParam("dest") String dest,
+            @RequestParam(value = "zipFolder", required = false) String zipFolder,
+            @RequestParam(value = "parentZip", required = false) String parentZip,
+            @RequestParam(value = "allOrders", required = false) String allOrders) {
+        props.setExcelPath(excel);
+        props.setSourceBasePath(source);
+        props.setDestBasePath(dest);
+        if (zipFolder != null) props.setZipFolderPath(zipFolder);
+        if (parentZip != null) props.setParentZipPath(parentZip);
+        if (allOrders != null) props.setAllOrdersBasePath(allOrders);
+        return "Caminhos atualizados.";
+    }
+
+    /**
      * Extrai todos os arquivos ZIP encontrados na pasta informada.
      *
      * @param path caminho da pasta contendo os arquivos ZIP
