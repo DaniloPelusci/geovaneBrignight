@@ -81,7 +81,12 @@ public class OrganizadorService {
         ZoneId zone = ZoneId.of(tz);
         LocalDate hoje = LocalDate.now(zone);
 
-        try (Workbook wb = new XSSFWorkbook(Files.newInputStream(excel))) {
+        String baseName = excel.getFileName().toString();
+        String newName = baseName.contains(".") ? baseName.substring(0, baseName.lastIndexOf('.')) + "-novo.xlsx" : baseName + "-novo.xlsx";
+        Path newExcel = excel.resolveSibling(newName);
+
+        try (Workbook wb = new XSSFWorkbook(Files.newInputStream(excel));
+             Workbook wbNovo = new XSSFWorkbook()) {
             // Abre a aba desejada da planilha
             Sheet sheet = wb.getSheetAt(sheetIndex);
             if (sheet == null) throw new IllegalArgumentException("Aba " + sheetIndex + " não encontrada no Excel.");
@@ -100,6 +105,21 @@ public class OrganizadorService {
             int idxNumero = idx(map, hNumero);
             int idxTipo   = idx(map, hTipo);
             int idxData   = idx(map, hData);
+            Integer idxInspector = map.get(normalize("INSPECTOR"));
+            Integer idxAddress1  = map.get(normalize("ADDRESS1"));
+            Integer idxCity      = map.get(normalize("CITY"));
+            Integer idxZip       = map.get(normalize("ZIP"));
+
+            Sheet sheetNovo = wbNovo.createSheet();
+            Row headerNovo = sheetNovo.createRow(0);
+            headerNovo.createCell(0).setCellValue("Data");
+            headerNovo.createCell(1).setCellValue("Inspector");
+            headerNovo.createCell(2).setCellValue("Address");
+            headerNovo.createCell(3).setCellValue("City");
+            headerNovo.createCell(4).setCellValue("zipcode");
+            headerNovo.createCell(5).setCellValue("OTYPE");
+            headerNovo.createCell(6).setCellValue("Worder");
+            int idxNovo = 1;
 
             int first = sheet.getFirstRowNum() + 1;
             int last  = sheet.getLastRowNum();
@@ -113,6 +133,10 @@ public class OrganizadorService {
                 String numero = fmt.formatCellValue(row.getCell(idxNumero)).trim();
                 String tipo   = fmt.formatCellValue(row.getCell(idxTipo)).trim();
                 LocalDate due = readLocalDate(row.getCell(idxData), fmt, zone);
+                String inspector = idxInspector != null ? fmt.formatCellValue(row.getCell(idxInspector)).trim() : "";
+                String address1  = idxAddress1 != null ? fmt.formatCellValue(row.getCell(idxAddress1)).trim() : "";
+                String city      = idxCity != null ? fmt.formatCellValue(row.getCell(idxCity)).trim() : "";
+                String zip       = idxZip != null ? fmt.formatCellValue(row.getCell(idxZip)).trim() : "";
 
                 if (numero.isBlank()) {
                     log("AVISO (linha " + (r+1) + "): Numero vazio. Ignorando.");
@@ -125,6 +149,15 @@ public class OrganizadorService {
                 if (due == null) {
                     log("AVISO (linha " + (r+1) + "): Data inválida (Numero=" + numero + "). Usando URGENCIA=SEM_DATA.");
                 }
+
+                Row rowNovo = sheetNovo.createRow(idxNovo++);
+                rowNovo.createCell(0).setCellValue(fmt.formatCellValue(row.getCell(idxData)));
+                rowNovo.createCell(1).setCellValue(inspector);
+                rowNovo.createCell(2).setCellValue(address1);
+                rowNovo.createCell(3).setCellValue(city);
+                rowNovo.createCell(4).setCellValue(zip);
+                rowNovo.createCell(5).setCellValue(tipo);
+                rowNovo.createCell(6).setCellValue(numero);
 
                 // Calcula a urgência (R=atrasado, Y=hoje, B=futuro, N=sem data)
                 String urg = computeUrgencia(hoje, due); // R | Y | B | N
@@ -152,6 +185,10 @@ public class OrganizadorService {
                     copyDirectory(src, dest);
                     log("COPIADO: " + src.getFileName() + " -> " + tipoDir.getFileName() + "/" + dest.getFileName() + " (urg=" + urg + ")");
                 }
+            }
+
+            try (var out = Files.newOutputStream(newExcel)) {
+                wbNovo.write(out);
             }
         }
 
