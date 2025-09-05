@@ -8,6 +8,7 @@ import br.com.portfoliopelusci.config.OrganizadorProperties;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.file.*;
 import java.text.Normalizer;
 import java.time.*;
@@ -166,6 +167,79 @@ public class OrganizadorService {
                 Files.move(dir, destino);
             }
             log("SEM PLANILHA: " + dir.getFileName());
+        }
+
+        // Atualiza outra planilha adicionando entradas ausentes
+        String otherPath = props.getOtherExcelPath();
+        if (otherPath != null && !otherPath.isBlank()) {
+            Path other = Path.of(otherPath);
+            mergeMissingRows(excel, other, sheetIndex, dryRun);
+        }
+
+        String outPath = props.getOutputExcelPath();
+        if (outPath != null && !outPath.isBlank()) {
+            Path out = Path.of(outPath);
+            exportReorderedExcel(excel, out, sheetIndex, dryRun);
+        }
+    }
+
+    private void exportReorderedExcel(Path source, Path dest, int sheetIndex, boolean dryRun) throws IOException {
+        try (Workbook srcWb = new XSSFWorkbook(Files.newInputStream(source));
+             Workbook outWb = new XSSFWorkbook()) {
+
+            DataFormatter fmt = new DataFormatter();
+
+            Sheet srcSheet = srcWb.getSheetAt(sheetIndex);
+            if (srcSheet == null) {
+                throw new IllegalArgumentException("Aba " + sheetIndex + " não encontrada no Excel.");
+            }
+            Row srcHeader = srcSheet.getRow(srcSheet.getFirstRowNum());
+            if (srcHeader == null) {
+                throw new IllegalArgumentException("Cabeçalho não encontrado na planilha.");
+            }
+            Map<String, Integer> map = mapHeader(srcHeader, fmt);
+
+            int idxDate      = idx(map, "DUEDATE");
+            int idxInspector = idx(map, "INSPECTOR");
+            int idxAddress   = idx(map, "ADDRESS1");
+            int idxCity      = idx(map, "CITY");
+            int idxZip       = idx(map, "ZIP");
+            int idxOtype     = idx(map, "OTYPE");
+            int idxWorder    = idx(map, "WORDER");
+
+            Sheet outSheet = outWb.createSheet(srcSheet.getSheetName());
+            Row header = outSheet.createRow(0);
+            String[] headers = {"Data", "Inspector", "Address", "City", "zipcode", "OTYPE", "Worder"};
+            for (int i = 0; i < headers.length; i++) {
+                header.createCell(i).setCellValue(headers[i]);
+            }
+
+            int first = srcSheet.getFirstRowNum() + 1;
+            int last  = srcSheet.getLastRowNum();
+            int outRowNum = 1;
+            for (int r = first; r <= last; r++) {
+                Row sRow = srcSheet.getRow(r);
+                if (sRow == null) continue;
+                Row oRow = outSheet.createRow(outRowNum++);
+                oRow.createCell(0).setCellValue(fmt.formatCellValue(sRow.getCell(idxDate)));
+                oRow.createCell(1).setCellValue(fmt.formatCellValue(sRow.getCell(idxInspector)));
+                oRow.createCell(2).setCellValue(fmt.formatCellValue(sRow.getCell(idxAddress)));
+                oRow.createCell(3).setCellValue(fmt.formatCellValue(sRow.getCell(idxCity)));
+                oRow.createCell(4).setCellValue(fmt.formatCellValue(sRow.getCell(idxZip)));
+                oRow.createCell(5).setCellValue(fmt.formatCellValue(sRow.getCell(idxOtype)));
+                oRow.createCell(6).setCellValue(fmt.formatCellValue(sRow.getCell(idxWorder)));
+            }
+
+            if (dryRun) {
+                log("[DRY-RUN] Gerar planilha reorganizada: " + dest);
+            } else {
+                Path parent = dest.getParent();
+                if (parent != null) Files.createDirectories(parent);
+                try (OutputStream out = Files.newOutputStream(dest)) {
+                    outWb.write(out);
+                }
+                log("PLANILHA GERADA: " + dest);
+            }
         }
     }
 
@@ -605,6 +679,100 @@ public class OrganizadorService {
             catch (DateTimeParseException ignored) {}
         }
         return null;
+    }
+
+    /**
+     * Atualiza a planilha de destino adicionando linhas ausentes
+     * e organizando as colunas conforme o mapeamento desejado.
+     */
+    private void mergeMissingRows(Path source, Path dest, int sheetIndex, boolean dryRun) throws IOException {
+        try (Workbook srcWb = new XSSFWorkbook(Files.newInputStream(source));
+             Workbook dstWb = Files.exists(dest)
+                     ? new XSSFWorkbook(Files.newInputStream(dest))
+                     : new XSSFWorkbook()) {
+
+            DataFormatter fmt = new DataFormatter();
+
+            Sheet srcSheet = srcWb.getSheetAt(sheetIndex);
+            if (srcSheet == null) {
+                throw new IllegalArgumentException("Aba " + sheetIndex + " não encontrada no Excel.");
+            }
+            Row srcHeader = srcSheet.getRow(srcSheet.getFirstRowNum());
+            if (srcHeader == null) {
+                throw new IllegalArgumentException("Cabeçalho não encontrado na planilha.");
+            }
+            Map<String, Integer> srcMap = mapHeader(srcHeader, fmt);
+
+            int idxDate      = idx(srcMap, "DUEDATE");
+            int idxInspector = idx(srcMap, "INSPECTOR");
+            int idxAddress   = idx(srcMap, "ADDRESS1");
+            int idxCity      = idx(srcMap, "CITY");
+            int idxZip       = idx(srcMap, "ZIP");
+            int idxOtype     = idx(srcMap, "OTYPE");
+            int idxWorder    = idx(srcMap, "WORDER");
+
+            Sheet dstSheet;
+            if (dstWb.getNumberOfSheets() == 0) {
+                dstSheet = dstWb.createSheet(srcSheet.getSheetName());
+                Row header = dstSheet.createRow(0);
+                String[] headers = {"Data", "Inspector", "Address", "City", "zipcode", "OTYPE", "Worder"};
+                for (int i = 0; i < headers.length; i++) {
+                    header.createCell(i).setCellValue(headers[i]);
+                }
+            } else {
+                dstSheet = dstWb.getSheetAt(0);
+            }
+
+            Row dstHeader = dstSheet.getRow(dstSheet.getFirstRowNum());
+            Map<String, Integer> dstMap = mapHeader(dstHeader, fmt);
+            int dstIdxWorder = idx(dstMap, "Worder");
+
+            Set<String> existentes = new HashSet<>();
+            int tFirst = dstSheet.getFirstRowNum() + 1;
+            int tLast = dstSheet.getLastRowNum();
+            for (int r = tFirst; r <= tLast; r++) {
+                Row row = dstSheet.getRow(r);
+                if (row == null) continue;
+                String w = fmt.formatCellValue(row.getCell(dstIdxWorder)).trim();
+                if (!w.isBlank()) existentes.add(w);
+            }
+
+            int destRowNum = tLast + 1;
+            int sFirst = srcSheet.getFirstRowNum() + 1;
+            int sLast  = srcSheet.getLastRowNum();
+            for (int r = sFirst; r <= sLast; r++) {
+                Row sRow = srcSheet.getRow(r);
+                if (sRow == null) continue;
+                String worder = fmt.formatCellValue(sRow.getCell(idxWorder)).trim();
+                if (worder.isBlank() || existentes.contains(worder)) {
+                    continue;
+                }
+                if (dryRun) {
+                    log("[DRY-RUN] Adicionar Worder=" + worder + " ao Excel: " + dest);
+                } else {
+                    Row dRow = dstSheet.createRow(destRowNum++);
+                    dRow.createCell(0).setCellValue(fmt.formatCellValue(sRow.getCell(idxDate)));
+                    dRow.createCell(1).setCellValue(fmt.formatCellValue(sRow.getCell(idxInspector)));
+                    dRow.createCell(2).setCellValue(fmt.formatCellValue(sRow.getCell(idxAddress)));
+                    dRow.createCell(3).setCellValue(fmt.formatCellValue(sRow.getCell(idxCity)));
+                    dRow.createCell(4).setCellValue(fmt.formatCellValue(sRow.getCell(idxZip)));
+                    dRow.createCell(5).setCellValue(fmt.formatCellValue(sRow.getCell(idxOtype)));
+                    dRow.createCell(6).setCellValue(worder);
+                }
+                existentes.add(worder);
+            }
+
+            if (dryRun) {
+                log("[DRY-RUN] Atualizar planilha: " + dest);
+            } else {
+                Path parent = dest.getParent();
+                if (parent != null) Files.createDirectories(parent);
+                try (OutputStream out = Files.newOutputStream(dest)) {
+                    dstWb.write(out);
+                }
+                log("PLANILHA ATUALIZADA: " + dest);
+            }
+        }
     }
 
     /**
