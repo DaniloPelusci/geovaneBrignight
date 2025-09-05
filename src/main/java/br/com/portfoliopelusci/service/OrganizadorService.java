@@ -647,18 +647,23 @@ public class OrganizadorService {
             int idxWorder    = idx(srcMap, "WORDER");
 
             Sheet dstSheet;
-            if (dstWb.getNumberOfSheets() == 0) {
-                dstSheet = dstWb.createSheet(srcSheet.getSheetName());
-                Row header = dstSheet.createRow(0);
-                String[] headers = {"Data", "Inspector", "Address", "City", "zipcode", "OTYPE", "Worder"};
-                for (int i = 0; i < headers.length; i++) {
-                    header.createCell(i).setCellValue(headers[i]);
+            if (dstWb.getNumberOfSheets() <= sheetIndex) {
+                while (dstWb.getNumberOfSheets() <= sheetIndex) {
+                    dstWb.createSheet();
                 }
-            } else {
-                dstSheet = dstWb.getSheetAt(0);
             }
+            dstSheet = dstWb.getSheetAt(sheetIndex);
+            dstWb.setSheetName(sheetIndex, srcSheet.getSheetName());
 
             Row dstHeader = dstSheet.getRow(dstSheet.getFirstRowNum());
+            if (dstHeader == null) {
+                dstHeader = dstSheet.createRow(0);
+                String[] headers = {"Data", "Inspector", "Address", "City", "zipcode", "OTYPE", "Worder"};
+                for (int i = 0; i < headers.length; i++) {
+                    dstHeader.createCell(i).setCellValue(headers[i]);
+                }
+            }
+
             Map<String, Integer> dstMap = mapHeader(dstHeader, fmt);
             int dstIdxWorder = idx(dstMap, "Worder");
 
