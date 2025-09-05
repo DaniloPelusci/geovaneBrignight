@@ -672,6 +672,8 @@ public class OrganizadorService {
                 if (!w.isBlank()) existentes.add(w);
             }
 
+            Map<String, String> inspectorMap = mapInspectorsFromFolders();
+
             int destRowNum = tLast + 1;
             int sFirst = srcSheet.getFirstRowNum() + 1;
             int sLast  = srcSheet.getLastRowNum();
@@ -687,7 +689,11 @@ public class OrganizadorService {
                 } else {
                     Row dRow = dstSheet.createRow(destRowNum++);
                     dRow.createCell(0).setCellValue(fmt.formatCellValue(sRow.getCell(idxDate)));
-                    dRow.createCell(1).setCellValue(fmt.formatCellValue(sRow.getCell(idxInspector)));
+                    String inspector = inspectorMap.get(worder);
+                    if (inspector == null || inspector.isBlank()) {
+                        inspector = fmt.formatCellValue(sRow.getCell(idxInspector));
+                    }
+                    dRow.createCell(1).setCellValue(inspector);
                     dRow.createCell(2).setCellValue(fmt.formatCellValue(sRow.getCell(idxAddress)));
                     dRow.createCell(3).setCellValue(fmt.formatCellValue(sRow.getCell(idxCity)));
                     dRow.createCell(4).setCellValue(fmt.formatCellValue(sRow.getCell(idxZip)));
@@ -707,6 +713,45 @@ public class OrganizadorService {
                 }
                 log("PLANILHA ATUALIZADA: " + dest);
             }
+        }
+    }
+
+    private Map<String, String> mapInspectorsFromFolders() {
+        Map<String, String> map = new HashMap<>();
+
+        Path destBase = Path.of(props.getDestBasePath());
+        loadInspectors(destBase, map);
+
+        Path source = Path.of(props.getSourceBasePath());
+        if (source.getNameCount() > 1) {
+            Path root = source.getParent().getParent();
+            loadInspectors(root, map);
+        }
+
+        return map;
+    }
+
+    private void loadInspectors(Path base, Map<String, String> map) {
+        if (base == null || !Files.isDirectory(base)) return;
+        try (Stream<Path> stream = Files.walk(base)) {
+            stream.filter(Files::isDirectory).forEach(p -> {
+                String name = p.getFileName().toString();
+                String numero = name.split(" ")[0];
+                if (numero.chars().allMatch(Character::isDigit)) {
+                    Path rel;
+                    try {
+                        rel = base.relativize(p);
+                    } catch (IllegalArgumentException e) {
+                        return;
+                    }
+                    if (rel.getNameCount() >= 3) {
+                        String inspector = rel.getName(0).toString();
+                        map.putIfAbsent(numero, inspector);
+                    }
+                }
+            });
+        } catch (IOException e) {
+            log("AVISO: não foi possível ler pastas de inspetores: " + e.getMessage());
         }
     }
 
