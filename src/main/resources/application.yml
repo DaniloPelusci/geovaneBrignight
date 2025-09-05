@@ -24,7 +24,6 @@ server:
 organizador:
   excel-path: "C:/Dev/Projeto Danilo/testes/TDW9FI 2608.xlsx"
   other-excel-path: "C:/Dev/Projeto Danilo/testes/TDW9FI 2608-output.xlsx"
-  output-excel-path: "C:/Dev/Projeto Danilo/testes/TDW9FI 2608-reordenado.xlsx"
   zip-folder-path: "C:/Dev/Projeto Danilo/testes/zips"
   parent-zip-path: "C:/Dev/Projeto Danilo/testes/pai.zip"
   source-base-path: "C:/Dev/Projeto Danilo/testes/pastasteste"
