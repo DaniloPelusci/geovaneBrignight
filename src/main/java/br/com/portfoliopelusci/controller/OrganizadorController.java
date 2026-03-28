@@ -25,6 +25,8 @@ public class OrganizadorController {
      * configurada, identifica as ordens existentes na pasta de origem e copia
      * cada uma delas para a pasta de destino correspondente, respeitando o
      * modo de execução definido em {@link OrganizadorProperties#isDryRun()}.
+     * Ao final, gera um segundo arquivo Excel contendo as colunas Data,
+     * Inspector, Address, City, zipcode, OTYPE e Worder.
      *
      * @return mensagem indicando o resultado da operação e se foi apenas um
      *         "dry run" (simulação) ou uma execução real
@@ -44,7 +46,9 @@ public class OrganizadorController {
      * Variante do endpoint principal que permite sobrescrever rapidamente o
      * valor de {@code dryRun}. Ao enviar {@code dryRun=false}, o processo passa
      * a copiar/mover os arquivos de fato; caso contrário, apenas registra nos
-     * logs o que seria feito.
+     * logs o que seria feito. Assim como no endpoint padrão, um arquivo Excel
+     * com as colunas Data, Inspector, Address, City, zipcode, OTYPE e Worder é
+     * gerado ao final do processamento.
      *
      * @param dryRun indica se a execução deve ser apenas simulada
      * @return mensagem com o status do processamento
