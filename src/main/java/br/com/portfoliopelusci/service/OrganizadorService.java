@@ -690,7 +690,7 @@ public class OrganizadorService {
                     continue;
                 }
                 if (dryRun) {
-                    log("[DRY-RUN] Adicionar Worder=" + worder + " ao Excel: " + dest);
+                    log("[DRY-RUN] Adicionar linha " + (r + 1) + " Worder=" + worder + " ao Excel: " + dest);
                 } else {
                     Row dRow = dstSheet.createRow(destRowNum++);
                     dRow.createCell(0).setCellValue(fmt.formatCellValue(sRow.getCell(idxDate)));
@@ -704,6 +704,7 @@ public class OrganizadorService {
                     dRow.createCell(4).setCellValue(fmt.formatCellValue(sRow.getCell(idxZip)));
                     dRow.createCell(5).setCellValue(fmt.formatCellValue(sRow.getCell(idxOtype)));
                     dRow.createCell(6).setCellValue(worder);
+                    log("COPIADO: linha " + (r + 1) + " Worder=" + worder + " para " + dest);
                 }
                 existentes.add(worder);
             }
